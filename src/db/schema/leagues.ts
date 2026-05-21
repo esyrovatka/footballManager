@@ -1,5 +1,6 @@
 import { boolean, integer, pgEnum, pgTable, text, time, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { users } from './auth';
+import { formationEnum, styleEnum } from './enums';
 
 export const leagueStatusEnum = pgEnum('league_status', ['setup', 'active', 'finished']);
 export const seasonStatusEnum = pgEnum('season_status', ['active', 'finished']);
@@ -25,6 +26,10 @@ export const clubs = pgTable('clubs', {
   managerUserId: uuid('manager_user_id').references(() => users.id, { onDelete: 'set null' }),
   isBot: boolean('is_bot').notNull().default(true),
   inviteCode: text('invite_code').unique(),
+  defaultFormation: formationEnum('default_formation'),
+  defaultStyle: styleEnum('default_style'),
+  defaultStarters: uuid('default_starters').array().notNull().default([]),
+  defaultSubs: uuid('default_subs').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 

@@ -2,19 +2,11 @@ import { bigint, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from '
 import { users } from './auth';
 import { clubs, seasons } from './leagues';
 import { leaguePlayers } from './players';
+import { formationEnum, styleEnum } from './enums';
+
+export { formationEnum, styleEnum };
 
 export const matchStatusEnum = pgEnum('match_status', ['scheduled', 'running', 'finished']);
-
-export const formationEnum = pgEnum('formation', [
-  '4-4-2',
-  '4-3-3',
-  '3-5-2',
-  '5-3-2',
-  '4-2-3-1',
-  '4-5-1',
-]);
-
-export const styleEnum = pgEnum('style', ['attack', 'balanced', 'defense']);
 
 export const matchEventTypeEnum = pgEnum('match_event_type', [
   'kickoff',

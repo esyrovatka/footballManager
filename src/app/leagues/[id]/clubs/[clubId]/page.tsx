@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { and, asc, eq, inArray, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/db/client';
@@ -36,6 +36,10 @@ export default async function ClubPage({
       managerUserId: clubs.managerUserId,
       managerEmail: users.email,
       managerName: users.name,
+      defaultFormation: clubs.defaultFormation,
+      defaultStyle: clubs.defaultStyle,
+      defaultStartersCount: sql<number>`COALESCE(array_length(${clubs.defaultStarters}, 1), 0)::int`,
+      defaultSubsCount: sql<number>`COALESCE(array_length(${clubs.defaultSubs}, 1), 0)::int`,
       leagueId: leagues.id,
       leagueName: leagues.name,
       leagueStatus: leagues.status,
@@ -169,6 +173,34 @@ export default async function ClubPage({
           <Stat label="Игроков" value={String(roster.length)} />
           <Stat label="Avg overall" value={String(avgOverall)} />
         </div>
+
+        {isMyClub && (
+          <section className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold mb-1">Состав на матч</div>
+                <div className="text-xs text-neutral-500">
+                  {clubRow.defaultFormation &&
+                  clubRow.defaultStartersCount === 11 &&
+                  clubRow.defaultSubsCount === 7 ? (
+                    <>
+                      <span className="text-green-600">✓ Готов</span> · {clubRow.defaultFormation} ·{' '}
+                      {clubRow.defaultStyle}
+                    </>
+                  ) : (
+                    <span className="text-amber-600">Состав не задан — будет авто-заполнен</span>
+                  )}
+                </div>
+              </div>
+              <Link
+                href={`/leagues/${id}/clubs/${clubId}/lineup`}
+                className="rounded-md bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 text-white px-4 py-2 text-sm whitespace-nowrap"
+              >
+                Редактировать
+              </Link>
+            </div>
+          </section>
+        )}
 
         <section>
           <h2 className="text-lg font-semibold mb-3">Ростер</h2>
