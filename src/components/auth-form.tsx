@@ -21,12 +21,15 @@ function SubmitButton({ label }: { label: string }) {
 const fieldClass =
   'w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-100';
 
-export function LoginForm() {
+export function LoginForm({ returnTo }: { returnTo?: string }) {
   const [state, formAction] = useActionState<AuthFormState, FormData>(loginAction, undefined);
+  const registerHref = returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : '/register';
 
   return (
     <form action={formAction} className="space-y-4">
       <h1 className="text-lg font-semibold">Вход</h1>
+
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
       <label className="block space-y-1">
         <span className="text-sm text-neutral-700 dark:text-neutral-300">Email</span>
@@ -44,7 +47,7 @@ export function LoginForm() {
 
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
         Нет аккаунта?{' '}
-        <Link href="/register" className="underline">
+        <Link href={registerHref} className="underline">
           Регистрация
         </Link>
       </p>
@@ -52,12 +55,15 @@ export function LoginForm() {
   );
 }
 
-export function RegisterForm() {
+export function RegisterForm({ returnTo }: { returnTo?: string }) {
   const [state, formAction] = useActionState<AuthFormState, FormData>(registerAction, undefined);
+  const loginHref = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login';
 
   return (
     <form action={formAction} className="space-y-4">
       <h1 className="text-lg font-semibold">Регистрация</h1>
+
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
       <label className="block space-y-1">
         <span className="text-sm text-neutral-700 dark:text-neutral-300">Имя (необязательно)</span>
@@ -92,7 +98,7 @@ export function RegisterForm() {
 
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
         Уже есть аккаунт?{' '}
-        <Link href="/login" className="underline">
+        <Link href={loginHref} className="underline">
           Войти
         </Link>
       </p>

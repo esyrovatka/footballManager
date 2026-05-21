@@ -15,7 +15,12 @@ export default async function ProfilePage() {
         <Link href="/" className="text-xl font-semibold">
           Football Manager
         </Link>
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="text-sm text-neutral-600 dark:text-neutral-400 hover:underline">
+            Мои клубы
+          </Link>
+          <LogoutButton />
+        </div>
       </div>
 
       <h1 className="text-2xl font-semibold mb-6">Профиль</h1>

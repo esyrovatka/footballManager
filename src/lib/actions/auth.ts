@@ -12,6 +12,11 @@ export type AuthFormState = { error?: string } | undefined;
 
 const MIN_PASSWORD_LENGTH = 6;
 
+function safeReturnTo(value: FormDataEntryValue | null): string {
+  const raw = typeof value === 'string' ? value : '';
+  return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/profile';
+}
+
 export async function registerAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const name = String(formData.get('name') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
@@ -42,7 +47,7 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
     throw error;
   }
 
-  redirect('/profile');
+  redirect(safeReturnTo(formData.get('returnTo')));
 }
 
 export async function loginAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -59,7 +64,7 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
     throw error;
   }
 
-  redirect('/profile');
+  redirect(safeReturnTo(formData.get('returnTo')));
 }
 
 export async function logoutAction() {

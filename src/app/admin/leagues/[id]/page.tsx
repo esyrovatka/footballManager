@@ -1,15 +1,23 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { asc, eq, sql } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { db } from '@/db/client';
 import { clubs, leagues, seasons } from '@/db/schema/leagues';
+import { users } from '@/db/schema/auth';
 import { leaguePlayers } from '@/db/schema/players';
 import { matches } from '@/db/schema/matches';
+import { ClubInviteCell } from '@/components/club-invite-row';
 
 export default async function LeagueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [league] = await db.select().from(leagues).where(eq(leagues.id, id)).limit(1);
   if (!league) notFound();
+
+  const hdrs = await headers();
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000';
+  const proto = hdrs.get('x-forwarded-proto') ?? 'http';
+  const origin = `${proto}://${host}`;
 
   const clubList = await db
     .select({
@@ -18,10 +26,13 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
       budget: clubs.budget,
       isBot: clubs.isBot,
       managerUserId: clubs.managerUserId,
+      managerEmail: users.email,
+      inviteCode: clubs.inviteCode,
       playerCount: sql<number>`(SELECT COUNT(*)::int FROM ${leaguePlayers} WHERE ${leaguePlayers.clubId} = ${clubs.id})`,
       avgOverall: sql<number>`(SELECT ROUND(AVG(${leaguePlayers.currentOverall}))::int FROM ${leaguePlayers} WHERE ${leaguePlayers.clubId} = ${clubs.id})`,
     })
     .from(clubs)
+    .leftJoin(users, eq(users.id, clubs.managerUserId))
     .where(eq(clubs.leagueId, id))
     .orderBy(asc(clubs.name));
 
@@ -41,8 +52,6 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
           awayClubId: matches.awayClubId,
           scheduledAt: matches.scheduledAt,
           status: matches.status,
-          homeScore: matches.homeScore,
-          awayScore: matches.awayScore,
         })
         .from(matches)
         .where(eq(matches.seasonId, activeSeason.id))
@@ -51,6 +60,7 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
     : [];
 
   const clubsById = new Map(clubList.map((c) => [c.id, c.name]));
+  const managedCount = clubList.filter((c) => !c.isBot).length;
 
   return (
     <div className="space-y-8">
@@ -66,7 +76,12 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold mb-3">Клубы ({clubList.length})</h2>
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-lg font-semibold">Клубы ({clubList.length})</h2>
+          <div className="text-xs text-neutral-500">
+            Занято менеджерами: {managedCount} / {clubList.length}
+          </div>
+        </div>
         <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 dark:bg-neutral-900 text-left">
@@ -85,12 +100,14 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
                   <td className="px-4 py-2">{c.playerCount}</td>
                   <td className="px-4 py-2">{c.avgOverall ?? '—'}</td>
                   <td className="px-4 py-2 font-mono text-xs">€{(c.budget / 1_000_000).toFixed(1)}M</td>
-                  <td className="px-4 py-2 text-xs">
-                    {c.managerUserId ? (
-                      <span className="text-green-600">занят</span>
-                    ) : (
-                      <span className="text-neutral-500">бот</span>
-                    )}
+                  <td className="px-4 py-2">
+                    <ClubInviteCell
+                      clubId={c.id}
+                      isBot={c.isBot}
+                      managerEmail={c.managerEmail}
+                      inviteCode={c.inviteCode}
+                      origin={origin}
+                    />
                   </td>
                 </tr>
               ))}

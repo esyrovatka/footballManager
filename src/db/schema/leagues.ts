@@ -24,6 +24,7 @@ export const clubs = pgTable('clubs', {
   budget: integer('budget').notNull(),
   managerUserId: uuid('manager_user_id').references(() => users.id, { onDelete: 'set null' }),
   isBot: boolean('is_bot').notNull().default(true),
+  inviteCode: text('invite_code').unique(),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 

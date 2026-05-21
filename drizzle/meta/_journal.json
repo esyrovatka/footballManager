@@ -15,6 +15,13 @@
       "when": 1779356107927,
       "tag": "0001_petite_mongoose",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779358428430,
+      "tag": "0002_amused_vermin",
+      "breakpoints": true
     }
   ]
 }
