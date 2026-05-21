@@ -1,10 +1,14 @@
 import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { leagues } from '@/db/schema/leagues';
+import { clubs, leagues } from '@/db/schema/leagues';
 import { matches, matchEvents, lineups } from '@/db/schema/matches';
+import { leaguePlayers } from '@/db/schema/players';
+import { newsItems } from '@/db/schema/news';
 import { simulate } from '@/engine/simulate';
 import { buildEngineTeam } from './build-team';
 import { IN_GAME_MINUTE_REAL_MS, TOTAL_MATCH_MINUTES, TOTAL_MATCH_REAL_MS, seedFromMatchId } from './constants';
+
+const UPSET_OVERALL_GAP = 7;
 
 export type TickResult = {
   started: { matchId: string; events: number }[];
@@ -88,12 +92,68 @@ export async function finalizeMatch(matchId: string): Promise<{ homeScore: numbe
     if (row.clubId === match.awayClubId) awayScore = row.count;
   }
 
+  // Look up the league + club names + avg overall for news
+  const [homeClub] = await db.select({ name: clubs.name, leagueId: clubs.leagueId }).from(clubs).where(eq(clubs.id, match.homeClubId)).limit(1);
+  const [awayClub] = await db.select({ name: clubs.name }).from(clubs).where(eq(clubs.id, match.awayClubId)).limit(1);
+
+  const [overalls] = await db.execute(sql`
+    SELECT
+      (SELECT ROUND(AVG(current_overall))::int FROM ${leaguePlayers} WHERE club_id = ${match.homeClubId}) AS home_avg,
+      (SELECT ROUND(AVG(current_overall))::int FROM ${leaguePlayers} WHERE club_id = ${match.awayClubId}) AS away_avg
+  `) as unknown as [{ home_avg: number; away_avg: number }];
+
+  const homeAvg = overalls?.home_avg ?? 0;
+  const awayAvg = overalls?.away_avg ?? 0;
+  const homeWon = homeScore > awayScore;
+  const awayWon = awayScore > homeScore;
+
+  const isUpset =
+    (homeWon && awayAvg - homeAvg >= UPSET_OVERALL_GAP) ||
+    (awayWon && homeAvg - awayAvg >= UPSET_OVERALL_GAP);
+
   const finishedAt = new Date();
   await db.transaction(async (tx) => {
     await tx
       .update(matches)
       .set({ status: 'finished', currentMinute: TOTAL_MATCH_MINUTES, homeScore, awayScore, finishedAt })
       .where(eq(matches.id, matchId));
+
+    // News: match result
+    if (homeClub) {
+      await tx.insert(newsItems).values({
+        leagueId: homeClub.leagueId,
+        type: 'match_result',
+        payload: {
+          matchId,
+          round: match.round,
+          homeClubId: match.homeClubId,
+          awayClubId: match.awayClubId,
+          homeName: homeClub.name,
+          awayName: awayClub?.name ?? 'Гости',
+          homeScore,
+          awayScore,
+        },
+      });
+
+      if (isUpset) {
+        const underdogClubId = homeWon ? match.homeClubId : match.awayClubId;
+        const favouriteClubId = homeWon ? match.awayClubId : match.homeClubId;
+        await tx.insert(newsItems).values({
+          leagueId: homeClub.leagueId,
+          type: 'upset',
+          payload: {
+            matchId,
+            underdogClubId,
+            underdogName: homeWon ? homeClub.name : awayClub?.name ?? 'Аутсайдер',
+            favouriteClubId,
+            favouriteName: homeWon ? awayClub?.name ?? 'Фаворит' : homeClub.name,
+            homeScore,
+            awayScore,
+            overallGap: Math.abs(homeAvg - awayAvg),
+          },
+        });
+      }
+    }
 
     // Bump league.current_round if this round's matches are now all finished
     const [round] = await tx

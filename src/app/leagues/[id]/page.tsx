@@ -1,11 +1,13 @@
 import Link from 'next/link';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/db/client';
 import { clubs, leagues, seasons } from '@/db/schema/leagues';
 import { matches } from '@/db/schema/matches';
+import { newsItems } from '@/db/schema/news';
 import { AppHeader } from '@/components/app-header';
+import { NewsFeed, type NewsItemRow } from '@/components/news-feed';
 import { getStandings } from '@/lib/standings';
 import { getTopScorers } from '@/lib/player-stats';
 
@@ -26,7 +28,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   if (!activeSeason) notFound();
 
-  const [standings, clubList, fixtures, topScorers] = await Promise.all([
+  const [standings, clubList, fixtures, topScorers, recentNews] = await Promise.all([
     getStandings(id, activeSeason.id),
     db
       .select({ id: clubs.id, name: clubs.name, managerUserId: clubs.managerUserId })
@@ -48,6 +50,17 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
       .where(eq(matches.seasonId, activeSeason.id))
       .orderBy(asc(matches.round), asc(matches.scheduledAt)),
     getTopScorers(id, 10),
+    db
+      .select({
+        id: newsItems.id,
+        type: newsItems.type,
+        createdAt: newsItems.createdAt,
+        payload: newsItems.payload,
+      })
+      .from(newsItems)
+      .where(eq(newsItems.leagueId, id))
+      .orderBy(desc(newsItems.createdAt))
+      .limit(5),
   ]);
 
   const clubsById = new Map(clubList.map((c) => [c.id, c.name]));
@@ -124,6 +137,18 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
             И — игры, В/Н/П — победы/ничьи/поражения, ГЗ/ГП — голы забитые/пропущенные, РЗ — разница, О — очки
           </p>
         </section>
+
+        {recentNews.length > 0 && (
+          <section>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-lg font-semibold">Новости</h2>
+              <Link href={`/leagues/${id}/news`} className="text-sm text-neutral-500 hover:underline">
+                Все →
+              </Link>
+            </div>
+            <NewsFeed leagueId={id} items={recentNews as NewsItemRow[]} />
+          </section>
+        )}
 
         {topScorers.length > 0 && (
           <section>
