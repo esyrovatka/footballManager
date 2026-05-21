@@ -349,7 +349,15 @@ export default async function ClubPage({
                           {isHome ? 'Дома' : 'В гостях'}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
-                          {f.status === 'finished' ? `${f.homeScore} : ${f.awayScore}` : <span className="text-neutral-400">—</span>}
+                          <Link href={`/leagues/${id}/matches/${f.id}`} className="hover:underline">
+                            {f.status === 'finished' ? (
+                              `${f.homeScore} : ${f.awayScore}`
+                            ) : f.status === 'running' ? (
+                              <span className="text-green-600 text-xs animate-pulse">LIVE</span>
+                            ) : (
+                              <span className="text-neutral-400">—</span>
+                            )}
+                          </Link>
                         </td>
                       </tr>
                     );

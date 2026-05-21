@@ -153,15 +153,19 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                           </Link>
                         </td>
                         <td className="px-3 py-2 w-20 text-center font-mono">
-                          {f.status === 'finished' ? (
-                            <span>
-                              {f.homeScore} : {f.awayScore}
-                            </span>
-                          ) : (
-                            <span className="text-neutral-400 text-xs">
-                              {f.scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          )}
+                          <Link href={`/leagues/${id}/matches/${f.id}`} className="hover:underline">
+                            {f.status === 'finished' ? (
+                              <span>
+                                {f.homeScore} : {f.awayScore}
+                              </span>
+                            ) : f.status === 'running' ? (
+                              <span className="text-green-600 text-xs animate-pulse">LIVE</span>
+                            ) : (
+                              <span className="text-neutral-400 text-xs">
+                                {f.scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </Link>
                         </td>
                         <td className="px-4 py-2 w-1/2">
                           <Link
