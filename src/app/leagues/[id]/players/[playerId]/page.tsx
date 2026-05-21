@@ -6,6 +6,7 @@ import { db } from '@/db/client';
 import { clubs, leagues } from '@/db/schema/leagues';
 import { leaguePlayers, playerTemplates } from '@/db/schema/players';
 import { AppHeader } from '@/components/app-header';
+import { getPlayerStats } from '@/lib/player-stats';
 
 const POSITION_LABEL: Record<'GK' | 'DEF' | 'MID' | 'FWD', string> = {
   GK: 'Вратарь',
@@ -54,6 +55,8 @@ export default async function PlayerPage({
 
   if (!player) notFound();
 
+  const stats = await getPlayerStats(player.id);
+
   // Future projection: where this player will be in 3 seasons
   const futureProjection = projectOverall(
     player.currentOverall,
@@ -95,6 +98,16 @@ export default async function PlayerPage({
             <Stat label="Вратарские" value={String(player.attributes.goalkeeping)} />
           )}
         </div>
+
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Статистика сезона</h2>
+          <div className="grid grid-cols-4 gap-3">
+            <Stat label="Матчи" value={String(stats.apps)} />
+            <Stat label="Голы" value={String(stats.goals)} />
+            <Stat label="ЖК" value={String(stats.yellows)} />
+            <Stat label="КК" value={String(stats.reds)} />
+          </div>
+        </section>
 
         <section>
           <h2 className="text-lg font-semibold mb-3">Контракт</h2>

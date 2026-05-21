@@ -7,6 +7,7 @@ import { clubs, leagues, seasons } from '@/db/schema/leagues';
 import { matches } from '@/db/schema/matches';
 import { AppHeader } from '@/components/app-header';
 import { getStandings } from '@/lib/standings';
+import { getTopScorers } from '@/lib/player-stats';
 
 export default async function LeaguePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -25,7 +26,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   if (!activeSeason) notFound();
 
-  const [standings, clubList, fixtures] = await Promise.all([
+  const [standings, clubList, fixtures, topScorers] = await Promise.all([
     getStandings(id, activeSeason.id),
     db
       .select({ id: clubs.id, name: clubs.name, managerUserId: clubs.managerUserId })
@@ -46,6 +47,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
       .from(matches)
       .where(eq(matches.seasonId, activeSeason.id))
       .orderBy(asc(matches.round), asc(matches.scheduledAt)),
+    getTopScorers(id, 10),
   ]);
 
   const clubsById = new Map(clubList.map((c) => [c.id, c.name]));
@@ -122,6 +124,53 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
             И — игры, В/Н/П — победы/ничьи/поражения, ГЗ/ГП — голы забитые/пропущенные, РЗ — разница, О — очки
           </p>
         </section>
+
+        {topScorers.length > 0 && (
+          <section>
+            <h2 className="text-lg font-semibold mb-3">Бомбардиры</h2>
+            <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 dark:bg-neutral-900 text-left">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                    <th className="px-3 py-2 font-medium w-8 text-right">#</th>
+                    <th className="px-3 py-2 font-medium">Игрок</th>
+                    <th className="px-3 py-2 font-medium">Клуб</th>
+                    <th className="px-3 py-2 font-medium">Поз</th>
+                    <th className="px-3 py-2 font-medium text-right">Голы</th>
+                    <th className="px-3 py-2 font-medium text-right">Матчи</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topScorers.map((p, idx) => (
+                    <tr
+                      key={p.player_id}
+                      className="border-b border-neutral-200 dark:border-neutral-800 last:border-0"
+                    >
+                      <td className="px-3 py-2 text-right text-neutral-500">{idx + 1}</td>
+                      <td className="px-3 py-2 font-medium">
+                        <Link href={`/leagues/${id}/players/${p.player_id}`} className="hover:underline">
+                          {p.player_name}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {p.club_id ? (
+                          <Link href={`/leagues/${id}/clubs/${p.club_id}`} className="hover:underline">
+                            {p.club_name}
+                          </Link>
+                        ) : (
+                          <span className="text-neutral-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs">{p.position}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{p.goals}</td>
+                      <td className="px-3 py-2 text-right text-neutral-500">{p.apps}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         <section>
           <h2 className="text-lg font-semibold mb-3">Календарь</h2>
