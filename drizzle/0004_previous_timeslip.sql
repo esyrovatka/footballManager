@@ -1,0 +1,1 @@
+ALTER TABLE "clubs" ADD COLUMN "default_sub_rules" jsonb DEFAULT '[]'::jsonb NOT NULL;

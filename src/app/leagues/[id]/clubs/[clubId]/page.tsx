@@ -40,6 +40,7 @@ export default async function ClubPage({
       defaultStyle: clubs.defaultStyle,
       defaultStartersCount: sql<number>`COALESCE(array_length(${clubs.defaultStarters}, 1), 0)::int`,
       defaultSubsCount: sql<number>`COALESCE(array_length(${clubs.defaultSubs}, 1), 0)::int`,
+      defaultSubRulesCount: sql<number>`COALESCE(jsonb_array_length(${clubs.defaultSubRules}), 0)::int`,
       leagueId: leagues.id,
       leagueName: leagues.name,
       leagueStatus: leagues.status,
@@ -175,29 +176,56 @@ export default async function ClubPage({
         </div>
 
         {isMyClub && (
-          <section className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold mb-1">Состав на матч</div>
-                <div className="text-xs text-neutral-500">
-                  {clubRow.defaultFormation &&
-                  clubRow.defaultStartersCount === 11 &&
-                  clubRow.defaultSubsCount === 7 ? (
-                    <>
-                      <span className="text-green-600">✓ Готов</span> · {clubRow.defaultFormation} ·{' '}
-                      {clubRow.defaultStyle}
-                    </>
-                  ) : (
-                    <span className="text-amber-600">Состав не задан — будет авто-заполнен</span>
-                  )}
+          <section className="space-y-3">
+            <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold mb-1">Состав на матч</div>
+                  <div className="text-xs text-neutral-500">
+                    {clubRow.defaultFormation &&
+                    clubRow.defaultStartersCount === 11 &&
+                    clubRow.defaultSubsCount === 7 ? (
+                      <>
+                        <span className="text-green-600">✓ Готов</span> · {clubRow.defaultFormation} ·{' '}
+                        {clubRow.defaultStyle}
+                      </>
+                    ) : (
+                      <span className="text-amber-600">Состав не задан — будет авто-заполнен</span>
+                    )}
+                  </div>
                 </div>
+                <Link
+                  href={`/leagues/${id}/clubs/${clubId}/lineup`}
+                  className="rounded-md bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 text-white px-4 py-2 text-sm whitespace-nowrap"
+                >
+                  Редактировать
+                </Link>
               </div>
-              <Link
-                href={`/leagues/${id}/clubs/${clubId}/lineup`}
-                className="rounded-md bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900 text-white px-4 py-2 text-sm whitespace-nowrap"
-              >
-                Редактировать
-              </Link>
+            </div>
+
+            <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold mb-1">Правила автозамен</div>
+                  <div className="text-xs text-neutral-500">
+                    {clubRow.defaultSubRulesCount > 0 ? (
+                      <span className="text-green-600">
+                        ✓ {clubRow.defaultSubRulesCount} из 3
+                      </span>
+                    ) : (
+                      <span className="text-neutral-500">
+                        Не заданы — в live-режиме делай замены вручную
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  href={`/leagues/${id}/clubs/${clubId}/substitutions`}
+                  className="rounded-md border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm whitespace-nowrap"
+                >
+                  Редактировать
+                </Link>
+              </div>
             </div>
           </section>
         )}

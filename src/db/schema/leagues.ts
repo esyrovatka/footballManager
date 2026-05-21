@@ -1,6 +1,7 @@
-import { boolean, integer, pgEnum, pgTable, text, time, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgEnum, pgTable, text, time, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { formationEnum, styleEnum } from './enums';
+import type { SubRule } from '@/lib/sub-rules';
 
 export const leagueStatusEnum = pgEnum('league_status', ['setup', 'active', 'finished']);
 export const seasonStatusEnum = pgEnum('season_status', ['active', 'finished']);
@@ -30,6 +31,7 @@ export const clubs = pgTable('clubs', {
   defaultStyle: styleEnum('default_style'),
   defaultStarters: uuid('default_starters').array().notNull().default([]),
   defaultSubs: uuid('default_subs').array().notNull().default([]),
+  defaultSubRules: jsonb('default_sub_rules').$type<SubRule[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 

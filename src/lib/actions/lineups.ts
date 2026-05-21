@@ -8,6 +8,12 @@ import { db } from '@/db/client';
 import { clubs } from '@/db/schema/leagues';
 import { leaguePlayers, playerTemplates } from '@/db/schema/players';
 import { isFormation, isStyle, positionsForFormation } from '@/lib/formation';
+import {
+  MAX_SUB_RULES,
+  isValidConditionType,
+  type SubRule,
+  type SubRuleCondition,
+} from '@/lib/sub-rules';
 
 export type LineupFormState = { error?: string; ok?: boolean } | undefined;
 
@@ -90,5 +96,88 @@ export async function saveDefaultLineupAction(
 
   revalidatePath(`/leagues/${club.leagueId}/clubs/${clubId}`);
   revalidatePath(`/leagues/${club.leagueId}/clubs/${clubId}/lineup`);
+  return { ok: true };
+}
+
+export async function saveSubRulesAction(
+  clubId: string,
+  _prev: LineupFormState,
+  formData: FormData,
+): Promise<LineupFormState> {
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+
+  const [club] = await db
+    .select({
+      id: clubs.id,
+      leagueId: clubs.leagueId,
+      managerUserId: clubs.managerUserId,
+      defaultStarters: clubs.defaultStarters,
+      defaultSubs: clubs.defaultSubs,
+    })
+    .from(clubs)
+    .where(eq(clubs.id, clubId))
+    .limit(1);
+
+  if (!club) return { error: 'Клуб не найден' };
+  if (club.managerUserId !== session.user.id && !session.user.isAdmin) {
+    return { error: 'Только менеджер клуба может править правила' };
+  }
+
+  const starters = new Set(club.defaultStarters);
+  const subs = new Set(club.defaultSubs);
+  if (starters.size === 0 || subs.size === 0) {
+    return { error: 'Сначала сохрани стартовый состав' };
+  }
+
+  const types = formData.getAll('type').map(String);
+  const minutes = formData.getAll('minute').map(String);
+  const playerOuts = formData.getAll('playerOut').map(String);
+  const playerIns = formData.getAll('playerIn').map(String);
+
+  const ruleCount = types.length;
+  if (ruleCount > MAX_SUB_RULES) {
+    return { error: `Максимум ${MAX_SUB_RULES} правил` };
+  }
+
+  const rules: SubRule[] = [];
+  const usedOuts = new Set<string>();
+  const usedIns = new Set<string>();
+
+  for (let i = 0; i < ruleCount; i++) {
+    const type = types[i];
+    if (!isValidConditionType(type)) return { error: `Правило ${i + 1}: некорректное условие` };
+
+    const minute = Number(minutes[i]);
+    if (!Number.isFinite(minute) || minute < 1 || minute > 90) {
+      return { error: `Правило ${i + 1}: минута должна быть от 1 до 90` };
+    }
+
+    const playerOutId = playerOuts[i];
+    const playerInId = playerIns[i];
+
+    if (!starters.has(playerOutId)) {
+      return { error: `Правило ${i + 1}: «убрать» — игрок не в основе` };
+    }
+    if (!subs.has(playerInId)) {
+      return { error: `Правило ${i + 1}: «выпустить» — игрок не в запасе` };
+    }
+    if (usedOuts.has(playerOutId)) {
+      return { error: `Правило ${i + 1}: этого игрока уже убирают в другом правиле` };
+    }
+    if (usedIns.has(playerInId)) {
+      return { error: `Правило ${i + 1}: этого игрока уже выпускают в другом правиле` };
+    }
+    usedOuts.add(playerOutId);
+    usedIns.add(playerInId);
+
+    const condition: SubRuleCondition = { type, minute };
+    rules.push({ condition, playerOutId, playerInId, priority: i });
+  }
+
+  await db.update(clubs).set({ defaultSubRules: rules }).where(eq(clubs.id, clubId));
+
+  revalidatePath(`/leagues/${club.leagueId}/clubs/${clubId}`);
+  revalidatePath(`/leagues/${club.leagueId}/clubs/${clubId}/substitutions`);
   return { ok: true };
 }
