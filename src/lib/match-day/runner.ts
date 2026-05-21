@@ -7,12 +7,15 @@ import { newsItems } from '@/db/schema/news';
 import { simulate } from '@/engine/simulate';
 import { buildEngineTeam } from './build-team';
 import { IN_GAME_MINUTE_REAL_MS, TOTAL_MATCH_MINUTES, TOTAL_MATCH_REAL_MS, seedFromMatchId } from './constants';
+import { endSeason, type EndSeasonResult } from './end-season';
+import { seasons } from '@/db/schema/leagues';
 
 const UPSET_OVERALL_GAP = 7;
 
 export type TickResult = {
   started: { matchId: string; events: number }[];
   finalized: { matchId: string; homeScore: number; awayScore: number }[];
+  seasonsEnded: EndSeasonResult[];
   errors: { matchId: string; error: string }[];
 };
 
@@ -185,7 +188,7 @@ export async function finalizeMatch(matchId: string): Promise<{ homeScore: numbe
 }
 
 export async function tick(): Promise<TickResult> {
-  const result: TickResult = { started: [], finalized: [], errors: [] };
+  const result: TickResult = { started: [], finalized: [], seasonsEnded: [], errors: [] };
   const now = new Date();
 
   // 1. Start due scheduled matches
@@ -228,6 +231,27 @@ export async function tick(): Promise<TickResult> {
     SET current_minute = LEAST(${TOTAL_MATCH_MINUTES}, FLOOR(EXTRACT(EPOCH FROM (NOW() - started_at)) * 1000 / ${IN_GAME_MINUTE_REAL_MS}))
     WHERE status = 'running' AND started_at IS NOT NULL
   `);
+
+  // 4. After finalizing matches, check if any seasons are now complete → end them
+  if (result.finalized.length > 0) {
+    // Find unique league ids of finalized matches' active seasons
+    const finalizedMatchIds = result.finalized.map((f) => f.matchId);
+    const seasonsTouched = await db
+      .select({ leagueId: seasons.leagueId })
+      .from(seasons)
+      .innerJoin(matches, eq(matches.seasonId, seasons.id))
+      .where(and(eq(seasons.status, 'active'), sql`${matches.id} = ANY(${finalizedMatchIds}::uuid[])`));
+    const uniqueLeagueIds = Array.from(new Set(seasonsTouched.map((s) => s.leagueId)));
+
+    for (const leagueId of uniqueLeagueIds) {
+      try {
+        const endResult = await endSeason(leagueId);
+        if (endResult) result.seasonsEnded.push(endResult);
+      } catch (e) {
+        result.errors.push({ matchId: leagueId, error: `endSeason: ${(e as Error).message}` });
+      }
+    }
+  }
 
   return result;
 }
