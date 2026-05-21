@@ -4,9 +4,10 @@ import type { AdapterAccountType } from 'next-auth/adapters';
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name'),
-  email: text('email').unique(),
+  email: text('email').notNull().unique(),
   emailVerified: timestamp('email_verified', { withTimezone: true, mode: 'date' }),
   image: text('image'),
+  passwordHash: text('password_hash').notNull(),
   isAdmin: boolean('is_admin').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
