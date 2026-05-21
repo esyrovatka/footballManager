@@ -4,11 +4,13 @@ import { db } from '@/db/client';
 import { playerTemplates } from '@/db/schema/players';
 import { leagues } from '@/db/schema/leagues';
 import { matches } from '@/db/schema/matches';
+import { users } from '@/db/schema/auth';
 import { TickButton } from '@/components/tick-button';
 
 export default async function AdminDashboard() {
   const [playerStats] = await db.select({ count: sql<number>`count(*)::int` }).from(playerTemplates);
   const [leagueStats] = await db.select({ count: sql<number>`count(*)::int` }).from(leagues);
+  const [userStats] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
   const [scheduledStats] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(matches)
@@ -26,7 +28,7 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Админ-панель</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           href="/admin/players"
           className="block rounded-lg border border-neutral-200 dark:border-neutral-800 p-5 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
@@ -43,6 +45,15 @@ export default async function AdminDashboard() {
           <div className="text-sm text-neutral-500 mb-1">Лиги</div>
           <div className="text-3xl font-semibold">{leagueStats?.count ?? 0}</div>
           <div className="text-xs text-neutral-500 mt-2">создано</div>
+        </Link>
+
+        <Link
+          href="/admin/users"
+          className="block rounded-lg border border-neutral-200 dark:border-neutral-800 p-5 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
+        >
+          <div className="text-sm text-neutral-500 mb-1">Пользователи</div>
+          <div className="text-3xl font-semibold">{userStats?.count ?? 0}</div>
+          <div className="text-xs text-neutral-500 mt-2">аккаунтов</div>
         </Link>
       </div>
 
