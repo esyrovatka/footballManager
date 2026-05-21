@@ -79,7 +79,7 @@ export async function createLeagueAction(
       .insert(leagues)
       .values({
         name,
-        status: 'active',
+        status: 'setup',
         seasonNumber: 1,
         currentRound: 0,
         matchTimeLocal: matchTime.length === 5 ? `${matchTime}:00` : matchTime,

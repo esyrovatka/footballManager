@@ -8,6 +8,8 @@ import { users } from '@/db/schema/auth';
 import { leaguePlayers } from '@/db/schema/players';
 import { matches } from '@/db/schema/matches';
 import { ClubInviteCell } from '@/components/club-invite-row';
+import { StartLeagueButton } from '@/components/readiness-controls';
+import { getReadinessStatus } from '@/lib/match-day/readiness';
 
 export default async function LeagueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -61,6 +63,7 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
 
   const clubsById = new Map(clubList.map((c) => [c.id, c.name]));
   const managedCount = clubList.filter((c) => !c.isBot).length;
+  const readiness = await getReadinessStatus(id);
 
   return (
     <div className="space-y-8">
@@ -74,6 +77,27 @@ export default async function LeagueDetailPage({ params }: { params: Promise<{ i
           {league.matchTimeLocal} ({league.timezone})
         </div>
       </div>
+
+      <section className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 space-y-2">
+        <h2 className="text-sm font-semibold">Запуск / готовность</h2>
+        {league.status === 'setup' ? (
+          <>
+            <p className="text-xs text-neutral-500">
+              Лига создана, но матчи ещё не идут. Нажми «Запустить лигу», после этого менеджеры смогут подтверждать готовность к турам.
+            </p>
+            <StartLeagueButton leagueId={id} />
+          </>
+        ) : league.status === 'active' ? (
+          <p className="text-xs text-neutral-500">
+            Готовы к следующему туру: <span className="font-mono">{readiness.readyHumans} / {readiness.totalHumans}</span>
+            {readiness.notReadyHumans.length > 0 && (
+              <> · ждём: {readiness.notReadyHumans.map((c) => c.clubName).join(', ')}</>
+            )}
+          </p>
+        ) : (
+          <p className="text-xs text-neutral-500">Лига завершена</p>
+        )}
+      </section>
 
       <section>
         <div className="flex items-baseline justify-between mb-3">

@@ -3,9 +3,11 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/db/client';
-import { clubs, leagues } from '@/db/schema/leagues';
+import { clubs, leagues, seasons } from '@/db/schema/leagues';
 import { leaguePlayers } from '@/db/schema/players';
+import { matches } from '@/db/schema/matches';
 import { AppHeader } from '@/components/app-header';
+import { ReadyButton } from '@/components/readiness-controls';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -16,11 +18,17 @@ export default async function DashboardPage() {
       clubId: clubs.id,
       clubName: clubs.name,
       budget: clubs.budget,
+      readyForRound: clubs.readyForRound,
       leagueId: leagues.id,
       leagueName: leagues.name,
       leagueStatus: leagues.status,
       currentRound: leagues.currentRound,
       playerCount: sql<number>`(SELECT COUNT(*)::int FROM ${leaguePlayers} WHERE ${leaguePlayers.clubId} = ${clubs.id})`,
+      runningMatches: sql<number>`(
+        SELECT COUNT(*)::int FROM ${matches} m
+        INNER JOIN ${seasons} s ON s.id = m.season_id
+        WHERE s.league_id = ${leagues.id} AND m.status = 'running'
+      )`,
     })
     .from(clubs)
     .innerJoin(leagues, eq(leagues.id, clubs.leagueId))
@@ -43,34 +51,58 @@ export default async function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {myClubs.map((c) => (
-              <Link
+              <div
                 key={c.clubId}
-                href={`/leagues/${c.leagueId}/clubs/${c.clubId}`}
-                className="block rounded-lg border border-neutral-200 dark:border-neutral-800 p-5 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
+                className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-5 space-y-3"
               >
-                <div className="text-xs uppercase text-neutral-500 tracking-wide mb-1">{c.leagueName}</div>
-                <div className="text-lg font-semibold">{c.clubName}</div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-neutral-500">
-                  <div>
-                    <div>Игроков</div>
-                    <div className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
-                      {c.playerCount}
+                <Link
+                  href={`/leagues/${c.leagueId}/clubs/${c.clubId}`}
+                  className="block hover:opacity-80 transition"
+                >
+                  <div className="text-xs uppercase text-neutral-500 tracking-wide mb-1">
+                    {c.leagueName}
+                  </div>
+                  <div className="text-lg font-semibold">{c.clubName}</div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-neutral-500">
+                    <div>
+                      <div>Игроков</div>
+                      <div className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
+                        {c.playerCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div>Бюджет</div>
+                      <div className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
+                        €{(c.budget / 1_000_000).toFixed(1)}M
+                      </div>
+                    </div>
+                    <div>
+                      <div>Статус</div>
+                      <div className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
+                        {c.leagueStatus}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div>Бюджет</div>
-                    <div className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
-                      €{(c.budget / 1_000_000).toFixed(1)}M
-                    </div>
-                  </div>
-                  <div>
-                    <div>Статус</div>
-                    <div className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
-                      {c.leagueStatus}
-                    </div>
-                  </div>
+                </Link>
+
+                <div className="pt-3 border-t border-neutral-200 dark:border-neutral-800">
+                  {c.leagueStatus === 'setup' ? (
+                    <p className="text-xs text-neutral-500">Лига ожидает запуска админом</p>
+                  ) : c.leagueStatus === 'finished' ? (
+                    <p className="text-xs text-neutral-500">Лига завершена</p>
+                  ) : c.runningMatches > 0 ? (
+                    <p className="text-xs text-green-600 animate-pulse">
+                      Тур {c.currentRound + 1} идёт ({c.runningMatches} матчей)
+                    </p>
+                  ) : (
+                    <ReadyButton
+                      clubId={c.clubId}
+                      isReady={c.readyForRound}
+                      nextRound={c.currentRound + 1}
+                    />
+                  )}
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}

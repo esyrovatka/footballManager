@@ -1,6 +1,7 @@
 import { and, asc, eq, gt, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { matches, matchEvents } from '@/db/schema/matches';
+import { IN_GAME_MINUTE_REAL_MS } from '@/lib/match-day/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -128,7 +129,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             const liveMinute =
               stateRow.status === 'finished'
                 ? 90
-                : Math.min(90, Math.floor(elapsedMs / 8_000));
+                : Math.min(90, Math.floor(elapsedMs / IN_GAME_MINUTE_REAL_MS));
 
             // Score from revealed goal events to avoid jumping ahead
             const goalsSoFar = await db

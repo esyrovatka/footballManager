@@ -1,4 +1,4 @@
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { clubs, leagues } from '@/db/schema/leagues';
 import { matches, matchEvents, lineups } from '@/db/schema/matches';
@@ -181,6 +181,11 @@ export async function finalizeMatch(matchId: string): Promise<{ homeScore: numbe
         .update(leagues)
         .set({ currentRound: sql`GREATEST(${leagues.currentRound}, ${round.round})` })
         .where(eq(leagues.id, round.leagueId));
+      // Round complete → all clubs must explicitly confirm for next round
+      await tx
+        .update(clubs)
+        .set({ readyForRound: false })
+        .where(eq(clubs.leagueId, round.leagueId));
     }
   });
 
@@ -191,24 +196,10 @@ export async function tick(): Promise<TickResult> {
   const result: TickResult = { started: [], finalized: [], seasonsEnded: [], errors: [] };
   const now = new Date();
 
-  // 1. Start due scheduled matches
-  const due = await db
-    .select({ id: matches.id })
-    .from(matches)
-    .where(and(eq(matches.status, 'scheduled'), lte(matches.scheduledAt, now)))
-    .orderBy(asc(matches.scheduledAt))
-    .limit(50);
+  // Note: rounds are now started by readiness (setReadyAction), not by time.
+  // Tick only finalizes running matches whose duration has elapsed.
 
-  for (const m of due) {
-    try {
-      const { events } = await startMatch(m.id);
-      result.started.push({ matchId: m.id, events });
-    } catch (e) {
-      result.errors.push({ matchId: m.id, error: (e as Error).message });
-    }
-  }
-
-  // 2. Finalize running matches whose duration has elapsed
+  // Finalize running matches whose duration has elapsed
   const elapsedThreshold = new Date(now.getTime() - TOTAL_MATCH_REAL_MS);
   const overdue = await db
     .select({ id: matches.id })

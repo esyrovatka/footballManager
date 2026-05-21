@@ -1,0 +1,1 @@
+ALTER TABLE "clubs" ADD COLUMN "ready_for_round" boolean DEFAULT false NOT NULL;

@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/app-header';
 import { LiveControls } from '@/components/live-controls';
 import { MatchLive, type MatchEventDto } from '@/components/match-live';
 import { getMatchLineup } from '@/lib/match-day/get-match-lineup';
+import { IN_GAME_MINUTE_REAL_MS } from '@/lib/match-day/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,7 @@ export default async function MatchPage({
     match.status === 'finished'
       ? 90
       : match.startedAt
-        ? Math.min(90, Math.floor((Date.now() - match.startedAt.getTime()) / 8_000))
+        ? Math.min(90, Math.floor((Date.now() - match.startedAt.getTime()) / IN_GAME_MINUTE_REAL_MS))
         : 0;
 
   // Live controls: only if user manages one of the playing clubs and match is running

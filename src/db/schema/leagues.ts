@@ -32,6 +32,7 @@ export const clubs = pgTable('clubs', {
   defaultStarters: uuid('default_starters').array().notNull().default([]),
   defaultSubs: uuid('default_subs').array().notNull().default([]),
   defaultSubRules: jsonb('default_sub_rules').$type<SubRule[]>().notNull().default([]),
+  readyForRound: boolean('ready_for_round').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 
