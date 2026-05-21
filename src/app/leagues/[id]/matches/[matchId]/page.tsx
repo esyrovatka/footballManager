@@ -1,12 +1,14 @@
 import Link from 'next/link';
-import { and, asc, eq, lte } from 'drizzle-orm';
+import { and, asc, eq, lte, or, sql } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/db/client';
 import { clubs, leagues, seasons } from '@/db/schema/leagues';
 import { matches, matchEvents } from '@/db/schema/matches';
 import { AppHeader } from '@/components/app-header';
+import { LiveControls } from '@/components/live-controls';
 import { MatchLive, type MatchEventDto } from '@/components/match-live';
+import { getMatchLineup } from '@/lib/match-day/get-match-lineup';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +78,39 @@ export default async function MatchPage({
         ? Math.min(90, Math.floor((Date.now() - match.startedAt.getTime()) / 8_000))
         : 0;
 
+  // Live controls: only if user manages one of the playing clubs and match is running
+  let managedClubId: string | null = null;
+  if (match.status === 'running' && session.user.id) {
+    const [managed] = await db
+      .select({ id: clubs.id })
+      .from(clubs)
+      .where(
+        and(
+          eq(clubs.managerUserId, session.user.id),
+          or(eq(clubs.id, match.homeClubId), eq(clubs.id, match.awayClubId)),
+        ),
+      )
+      .limit(1);
+    if (managed) managedClubId = managed.id;
+  }
+
+  let lineup = null;
+  let subsUsed = 0;
+  if (managedClubId) {
+    lineup = await getMatchLineup(matchId, managedClubId);
+    const [count] = await db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(matchEvents)
+      .where(
+        and(
+          eq(matchEvents.matchId, matchId),
+          eq(matchEvents.type, 'sub'),
+          eq(matchEvents.clubId, managedClubId),
+        ),
+      );
+    subsUsed = count?.c ?? 0;
+  }
+
   return (
     <>
       <AppHeader />
@@ -101,6 +136,17 @@ export default async function MatchPage({
             events,
           }}
         />
+
+        {managedClubId && lineup && (
+          <LiveControls
+            matchId={matchId}
+            clubName={managedClubId === match.homeClubId ? homeName : awayName}
+            starters={lineup.starters}
+            subs={lineup.subs}
+            subsUsed={subsUsed}
+            maxSubs={3}
+          />
+        )}
 
         <div className="text-xs text-neutral-500 flex gap-4">
           <Link href={`/leagues/${id}/clubs/${match.homeClubId}`} className="hover:underline">

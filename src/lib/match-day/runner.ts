@@ -1,7 +1,7 @@
 import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { leagues } from '@/db/schema/leagues';
-import { matches, matchEvents } from '@/db/schema/matches';
+import { matches, matchEvents, lineups } from '@/db/schema/matches';
 import { simulate } from '@/engine/simulate';
 import { buildEngineTeam } from './build-team';
 import { IN_GAME_MINUTE_REAL_MS, TOTAL_MATCH_MINUTES, TOTAL_MATCH_REAL_MS, seedFromMatchId } from './constants';
@@ -39,6 +39,24 @@ export async function startMatch(matchId: string): Promise<{ events: number; see
 
   await db.transaction(async (tx) => {
     await tx.insert(matchEvents).values(eventRows);
+    await tx.insert(lineups).values([
+      {
+        matchId,
+        clubId: home.clubId,
+        formation: home.formation,
+        style: home.style,
+        starters: home.starters.map((p) => p.id),
+        subs: home.subs.map((p) => p.id),
+      },
+      {
+        matchId,
+        clubId: away.clubId,
+        formation: away.formation,
+        style: away.style,
+        starters: away.starters.map((p) => p.id),
+        subs: away.subs.map((p) => p.id),
+      },
+    ]);
     await tx
       .update(matches)
       .set({ status: 'running', startedAt, currentMinute: 0, engineSeed: seed })
