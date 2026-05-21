@@ -24,6 +24,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin/players" className="hover:underline">
               Игроки
             </Link>
+            <Link href="/admin/leagues" className="hover:underline">
+              Лиги
+            </Link>
           </nav>
           <div className="ml-auto flex items-center gap-3">
             <span className="text-sm text-neutral-600 dark:text-neutral-400">{session.user.email}</span>

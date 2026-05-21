@@ -24,11 +24,14 @@ export default async function AdminDashboard() {
           <div className="text-xs text-neutral-500 mt-2">шаблонов в базе</div>
         </Link>
 
-        <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-5 opacity-60">
+        <Link
+          href="/admin/leagues"
+          className="block rounded-lg border border-neutral-200 dark:border-neutral-800 p-5 hover:border-neutral-400 dark:hover:border-neutral-600 transition"
+        >
           <div className="text-sm text-neutral-500 mb-1">Лиги</div>
           <div className="text-3xl font-semibold">{leagueStats?.count ?? 0}</div>
-          <div className="text-xs text-neutral-500 mt-2">создано (UI в фазе 2.1)</div>
-        </div>
+          <div className="text-xs text-neutral-500 mt-2">создано</div>
+        </Link>
       </div>
     </div>
   );

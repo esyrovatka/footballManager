@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { db } from '@/db/client';
 import { playerTemplates, type PlayerAttributes } from '@/db/schema/players';
+import { generatePlayerTemplates } from '@/lib/player-generator';
 
 export type PlayerFormState = { error?: string } | undefined;
 
@@ -110,4 +111,24 @@ export async function deletePlayerTemplateAction(id: string) {
   await db.delete(playerTemplates).where(eq(playerTemplates.id, id));
   revalidatePath('/admin/players');
   redirect('/admin/players');
+}
+
+export type GenerateState = { error?: string; created?: number } | undefined;
+
+export async function generatePlayersAction(
+  _prev: GenerateState,
+  formData: FormData,
+): Promise<GenerateState> {
+  await requireAdmin();
+  const count = Number(formData.get('count'));
+  if (!Number.isFinite(count) || count < 1 || count > 500) {
+    return { error: 'Количество должно быть от 1 до 500' };
+  }
+
+  const players = generatePlayerTemplates(count);
+  await db.insert(playerTemplates).values(players);
+
+  revalidatePath('/admin/players');
+  revalidatePath('/admin');
+  return { created: count };
 }

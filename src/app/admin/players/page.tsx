@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { and, asc, desc, eq, ilike, type SQL } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { playerTemplates } from '@/db/schema/players';
+import { GeneratePlayersForm } from '@/components/generate-players-form';
 
 type SearchParams = {
   q?: string;
@@ -53,6 +54,8 @@ export default async function PlayersListPage({
           + Добавить
         </Link>
       </div>
+
+      <GeneratePlayersForm />
 
       <form className="flex flex-wrap gap-3 items-end">
         <label className="flex flex-col gap-1">
