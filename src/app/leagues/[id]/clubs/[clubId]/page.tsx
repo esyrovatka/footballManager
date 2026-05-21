@@ -227,6 +227,23 @@ export default async function ClubPage({
                 </Link>
               </div>
             </div>
+
+            <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold mb-1">Трансферный рынок</div>
+                  <div className="text-xs text-neutral-500">
+                    Свободные агенты, офферы, поиск игроков
+                  </div>
+                </div>
+                <Link
+                  href={`/leagues/${id}/clubs/${clubId}/transfers`}
+                  className="rounded-md border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm whitespace-nowrap"
+                >
+                  Открыть
+                </Link>
+              </div>
+            </div>
           </section>
         )}
 

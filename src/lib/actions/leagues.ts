@@ -9,6 +9,7 @@ import { leaguePlayers, playerTemplates } from '@/db/schema/players';
 import { matches } from '@/db/schema/matches';
 import { buildRoundRobin } from '@/lib/schedule';
 import { distributePlayers } from '@/lib/distribute-players';
+import { salaryFromOverall } from '@/lib/transfers';
 
 export type CreateLeagueState = { error?: string } | undefined;
 
@@ -20,12 +21,6 @@ const SEASON_CONTRACT_LENGTH = 3;
 async function requireAdmin() {
   const session = await auth();
   if (!session?.user?.isAdmin) redirect('/login');
-}
-
-function salaryFromOverall(overall: number): number {
-  // ~0.5% of transfer value, value = (overall^2 / 80) * 1_000_000 (M€ proxy)
-  const transferValue = Math.round((overall * overall) / 80) * 1_000_000;
-  return Math.round(transferValue * 0.005);
 }
 
 function nextMatchDate(daysFromNow: number, matchTime: string): Date {
@@ -132,6 +127,24 @@ export async function createLeagueAction(
       }
     });
     await tx.insert(leaguePlayers).values(leaguePlayerRows);
+
+    // Remaining templates become free agents (clubId = null)
+    const usedIds = new Set(selected.map((t) => t.id));
+    const freeAgents = allTemplates.filter((t) => !usedIds.has(t.id));
+    if (freeAgents.length > 0) {
+      await tx.insert(leaguePlayers).values(
+        freeAgents.map((t) => ({
+          leagueId: league.id,
+          clubId: null,
+          templateId: t.id,
+          currentOverall: t.baseOverall,
+          currentAge: t.age,
+          attributes: t.attributes,
+          contractSalary: salaryFromOverall(t.baseOverall),
+          contractUntilSeason: 1,
+        })),
+      );
+    }
 
     const [season] = await tx
       .insert(seasons)
